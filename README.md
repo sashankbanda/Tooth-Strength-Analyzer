@@ -15,6 +15,13 @@ This project is a research-grade, automated system for analyzing tooth strength 
 
 2.  **Installation:**
     ```bash
+    # Create virtual environment
+    python -m venv .venv
+    
+    # Activate virtual environment (Windows)
+    .venv\Scripts\activate
+    
+    # Install dependencies
     pip install -r requirements.txt
     ```
 
