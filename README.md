@@ -27,7 +27,9 @@ This project is a research-grade, automated system for analyzing tooth strength 
 
 3.  **Running the API:**
     ```bash
-    uvicorn api.main:app --reload
+    ```bash
+    uvicorn api.main:app --reload --port 8001
+    ```
     ```
 
 ## Directory Structure
