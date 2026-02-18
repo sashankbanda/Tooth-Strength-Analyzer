@@ -5,6 +5,24 @@ This project is an automated dental diagnostic system that processes panoramic X
 
 ## Methodology
 
+```mermaid
+graph TD
+    A[Input X-Ray] --> B[Step 1: Preprocessing]
+    B -->|Enhanced Image| C[Step 2: Detection]
+    
+    subgraph "AI Models"
+    C -->|Mask R-CNN| D[Tooth Detection]
+    D -->|U-Net++| E[Structure Segmentation]
+    end
+    
+    E -->|Root/Bone Masks| F[Step 3: Measurement]
+    F -->|Bone Loss %| G[Step 4: Classification]
+    
+    G --> H[Step 5: Output]
+    H --> I[Visual X-Ray]
+    H --> J[Diagnostic Report]
+```
+
 ### Step 1: Preprocessing
 Enhances raw X-ray images for better analysis:
 *   **Noise Removal**: Gaussian Blur.
@@ -60,6 +78,29 @@ Generates comprehensive results:
     ```bash
     uvicorn api.main:app --reload --port 8001
     ```
+
+## Debugging & Visualization
+To see the output of each step and the calculation values:
+
+1.  **Run the Debug Pipeline:**
+    ```bash
+    python debug_pipeline.py --image inputs/00011.jpg
+    ```
+
+2.  **View Outputs:**
+    Check the `outputs/debug_00011/` directory. It contains:
+    *   `01_original.jpg`: Raw input.
+    *   `01_preprocessed.jpg`: Enhanced image (Step 1).
+    *   `02_detections.jpg`: Detected teeth (Step 2).
+    *   `03_tooth_X_crop.jpg`: Individual tooth crops.
+    *   `04_tooth_X_mask.jpg`: Segmentation masks (Step 2).
+    *   `05_tooth_X_analysis.jpg`: Final marked image with Diagnosis & Scores (Steps 3-5).
+
+3.  **View Calculations:**
+    Check the **terminal/console output** while the script runs. It prints:
+    *   Detected tooth count.
+    *   Per-tooth metrics (Strength, Infection, Integrity).
+    *   Diagnosis (e.g., "Severe Periodontitis").
 
 ## Directory Structure
 - `api/`: FastAPI application and routes.
