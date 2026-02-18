@@ -9,7 +9,8 @@ from models.mask_rcnn.inference import ToothInstanceSegmentor
 from models.mask_rcnn.utils import extract_all_teeth
 from models.unetpp.inference import ToothStructureSegmentor
 from services.measurement import extract_root_length, detect_bone_level, calculate_bone_loss_percentage
-from services.scoring import calculate_strength_score, calculate_integrity_score, calculate_infection_score
+from services.scoring import calculate_strength_score, calculate_integrity_score, calculate_infection_score, get_classification
+from services.preprocessing import preprocess_image
 from api.schemas import AnalysisReport, ToothResult, ToothScores, ToothMeasurements, ToothMasks
 
 import base64
@@ -47,13 +48,16 @@ async def analyze_scan(scan: UploadFile = File(...)):
     contents = await scan.read()
     try:
         image = Image.open(io.BytesIO(contents)).convert("RGB")
-        image_np = np.array(image)
+        image_np_raw = np.array(image)
+        
+        # Stage 1: Preprocessing
+        image_np = preprocess_image(image_np_raw)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid image file")
 
     inst_seg, struct_seg = get_segmentors()
 
-    # Stage 1: Tooth Instance Segmentation
+    # Stage 2: Tooth Instance Segmentation
     # Run in threadpool to avoid blocking event loop if not fully async
     detections = await run_in_threadpool(inst_seg.predict, image_np)
 
@@ -66,10 +70,10 @@ async def analyze_scan(scan: UploadFile = File(...)):
         tooth_id = tooth_data['id']
         crop = tooth_data['image']
         
-        # Stage 2: Structural Segmentation
+        # Stage 3: Structural Segmentation
         structure_mask = await run_in_threadpool(struct_seg.predict, crop)
         
-        # Stage 3: Measurement
+        # Stage 4: Measurement
         # Assuming pixel spacing is 1.0 for now, or derived from metadata
         pixel_spacing = 0.1 # Placeholder: 0.1mm per pixel
         
@@ -82,7 +86,7 @@ async def analyze_scan(scan: UploadFile = File(...)):
         
         bone_loss_pct = calculate_bone_loss_percentage(root_len_mm, bone_loss_mm)
         
-        # Stage 4: Scoring
+        # Stage 5: Scoring & Classification
         # integrity_score = 100 # Default valid
         # infection_score = 100 # Default healthy
         
@@ -94,6 +98,8 @@ async def analyze_scan(scan: UploadFile = File(...)):
         strength_score, score_details = calculate_strength_score(
             bone_loss_pct, integrity_score, infection_score
         )
+        
+        diagnosis = get_classification(bone_loss_pct)
         
         # Encode masks for response (optional, can be heavy)
         # root_mask = (structure_mask == 1).astype(np.uint8)
@@ -111,6 +117,7 @@ async def analyze_scan(scan: UploadFile = File(...)):
                 root_length_mm=round(root_len_mm, 2),
                 bone_loss_percent=round(bone_loss_pct, 2)
             ),
+            diagnosis=diagnosis,
             masks=None # Skip sending heavy base64 for now
         ))
 

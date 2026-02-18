@@ -9,7 +9,9 @@ from models.mask_rcnn.inference import ToothInstanceSegmentor
 from models.mask_rcnn.utils import extract_all_teeth
 from models.unetpp.inference import ToothStructureSegmentor
 from services.measurement import extract_root_length, detect_bone_level, calculate_bone_loss_percentage
-from services.scoring import calculate_strength_score, calculate_integrity_score, calculate_infection_score
+from services.measurement import extract_root_length, detect_bone_level, calculate_bone_loss_percentage
+from services.scoring import calculate_strength_score, calculate_integrity_score, calculate_infection_score, get_classification
+from services.preprocessing import preprocess_image
 
 def visualize_detections(image, detections, output_path):
     vis_img = image.copy()
@@ -70,6 +72,7 @@ def visualize_analysis(crop, mask, root_details, bone_details, flow_details, out
     scores = flow_details['scores']
     msg = [
         f"Strength: {scores['strength']}",
+        f"Dia: {flow_details['diagnosis']}",
         f"Bone Loss: {flow_details['measurements']['bone_loss_percent']}%",
         f"Infection: {scores['infection']}",
         f"Integrity: {scores['integrity']}"
@@ -92,9 +95,15 @@ def run_debug_pipeline(image_path, output_dir):
     if img is None:
         print("Error: Could not read image.")
         return
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_rgb_raw = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     
-    cv2.imwrite(str(output_dir / "01_original.jpg"), img)
+    # Preprocessing
+    print("Stage 0: Preprocessing...")
+    img_rgb = preprocess_image(img_rgb_raw)
+    
+    # Save comparison
+    cv2.imwrite(str(output_dir / "01_original.jpg"), cv2.cvtColor(img_rgb_raw, cv2.COLOR_RGB2BGR))
+    cv2.imwrite(str(output_dir / "01_preprocessed.jpg"), cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR))
     
     # 1. Instance Segmentation
     print("Stage 1: Detecting teeth...")
@@ -162,6 +171,8 @@ def run_debug_pipeline(image_path, output_dir):
             bone_loss_pct, integrity_score, infection_score
         )
         
+        diagnosis = get_classification(bone_loss_pct)
+        
         flow_details = {
             "scores": {
                 "strength": strength_score,
@@ -169,6 +180,10 @@ def run_debug_pipeline(image_path, output_dir):
                 "integrity": integrity_score,
                 "bone_support": score_details["bone_support_score"]
             },
+            "measures": {
+                "bone_loss_percent": round(bone_loss_pct, 2)
+            },
+            "diagnosis": diagnosis,
             "measurements": {
                 "bone_loss_percent": round(bone_loss_pct, 2)
             }
@@ -177,7 +192,7 @@ def run_debug_pipeline(image_path, output_dir):
         # Visualize Analysis
         visualize_analysis(crop_bgr, mask, root_details, bone_details, flow_details, output_dir / f"05_tooth_{tid}_analysis.jpg")
         
-        print(f"Tooth {tid}: Strength={strength_score}, Infection={infection_score}, Integrity={integrity_score}")
+        print(f"Tooth {tid}: Strength={strength_score}, Diagnosis={diagnosis}, Infection={infection_score}, Integrity={integrity_score}")
 
 if __name__ == "__main__":
     import argparse

@@ -20,6 +20,7 @@ class ToothResult(BaseModel):
     tooth_id: int
     scores: ToothScores
     measurements: ToothMeasurements
+    diagnosis: Optional[str] = None
     masks: Optional[ToothMasks] = None
 
 class AnalysisReport(BaseModel):
