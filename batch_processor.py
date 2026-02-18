@@ -22,7 +22,7 @@ def visualize_results(image, teeth_data, output_path):
     """
     vis_img = image.copy()
     
-    for tooth in teeth_data:
+    for tooth in teeth_data: 
         # Draw Bounding Box
         x1, y1, x2, y2 = tooth['box']
         color = (0, 255, 0) # Green

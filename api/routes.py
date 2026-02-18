@@ -9,7 +9,7 @@ from models.mask_rcnn.inference import ToothInstanceSegmentor
 from models.mask_rcnn.utils import extract_all_teeth
 from models.unetpp.inference import ToothStructureSegmentor
 from services.measurement import extract_root_length, detect_bone_level, calculate_bone_loss_percentage
-from services.scoring import calculate_strength_score
+from services.scoring import calculate_strength_score, calculate_integrity_score, calculate_infection_score
 from api.schemas import AnalysisReport, ToothResult, ToothScores, ToothMeasurements, ToothMasks
 
 import base64
@@ -83,9 +83,13 @@ async def analyze_scan(scan: UploadFile = File(...)):
         bone_loss_pct = calculate_bone_loss_percentage(root_len_mm, bone_loss_mm)
         
         # Stage 4: Scoring
-        # Placeholder for integrity and infection (need Stage 3 models or inputs)
-        integrity_score = 100 # Default valid
-        infection_score = 100 # Default healthy
+        # integrity_score = 100 # Default valid
+        # infection_score = 100 # Default healthy
+        
+        apex_point = root_details.get("apex") # [y, x]
+        
+        integrity_score = calculate_integrity_score(structure_mask)
+        infection_score = calculate_infection_score(crop, structure_mask, apex_point)
         
         strength_score, score_details = calculate_strength_score(
             bone_loss_pct, integrity_score, infection_score
