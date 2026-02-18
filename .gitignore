@@ -29,3 +29,5 @@ Thumbs.db
 # Models (if large)
 # models/*.pth
 # models/*.pt
+
+dataset/

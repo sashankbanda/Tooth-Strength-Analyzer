@@ -10,7 +10,7 @@ from models.mask_rcnn.utils import extract_all_teeth
 from models.unetpp.inference import ToothStructureSegmentor
 from services.measurement import extract_root_length, detect_bone_level, calculate_bone_loss_percentage
 from services.measurement import extract_root_length, detect_bone_level, calculate_bone_loss_percentage
-from services.scoring import calculate_strength_score, calculate_integrity_score, calculate_infection_score, get_classification
+from services.scoring import calculate_strength_score, get_classification
 from services.preprocessing import preprocess_image
 
 def visualize_detections(image, detections, output_path):
@@ -73,9 +73,7 @@ def visualize_analysis(crop, mask, root_details, bone_details, flow_details, out
     msg = [
         f"Strength: {scores['strength']}",
         f"Dia: {flow_details['diagnosis']}",
-        f"Bone Loss: {flow_details['measurements']['bone_loss_percent']}%",
-        f"Infection: {scores['infection']}",
-        f"Integrity: {scores['integrity']}"
+        f"Bone Loss: {flow_details['measurements']['bone_loss_percent']}%"
     ]
     
     y0, dy = 15, 15
@@ -164,20 +162,15 @@ def run_debug_pipeline(image_path, output_dir):
         
         # Scoring
         apex_point = root_details.get("apex")
-        integrity_score = calculate_integrity_score(mask)
-        infection_score = calculate_infection_score(crop, mask, apex_point)
         
-        strength_score, score_details = calculate_strength_score(
-            bone_loss_pct, integrity_score, infection_score
-        )
+        # Score is now purely based on Bone Support (Safety First)
+        strength_score, score_details = calculate_strength_score(bone_loss_pct)
         
         diagnosis = get_classification(bone_loss_pct)
         
         flow_details = {
             "scores": {
                 "strength": strength_score,
-                "infection": infection_score,
-                "integrity": integrity_score,
                 "bone_support": score_details["bone_support_score"]
             },
             "measures": {
@@ -192,7 +185,7 @@ def run_debug_pipeline(image_path, output_dir):
         # Visualize Analysis
         visualize_analysis(crop_bgr, mask, root_details, bone_details, flow_details, output_dir / f"05_tooth_{tid}_analysis.jpg")
         
-        print(f"Tooth {tid}: Strength={strength_score}, Diagnosis={diagnosis}, Infection={infection_score}, Integrity={integrity_score}")
+        print(f"Tooth {tid}: Strength={strength_score}, Diagnosis={diagnosis}")
 
 if __name__ == "__main__":
     import argparse

@@ -4,8 +4,6 @@ from typing import List, Dict, Optional
 class ToothScores(BaseModel):
     strength: float
     bone_support: float
-    integrity: float
-    infection: float
 
 class ToothMeasurements(BaseModel):
     root_length_mm: float

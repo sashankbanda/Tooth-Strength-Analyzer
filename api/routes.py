@@ -9,7 +9,7 @@ from models.mask_rcnn.inference import ToothInstanceSegmentor
 from models.mask_rcnn.utils import extract_all_teeth
 from models.unetpp.inference import ToothStructureSegmentor
 from services.measurement import extract_root_length, detect_bone_level, calculate_bone_loss_percentage
-from services.scoring import calculate_strength_score, calculate_integrity_score, calculate_infection_score, get_classification
+from services.scoring import calculate_strength_score, get_classification
 from services.preprocessing import preprocess_image
 from api.schemas import AnalysisReport, ToothResult, ToothScores, ToothMeasurements, ToothMasks
 
@@ -92,12 +92,9 @@ async def analyze_scan(scan: UploadFile = File(...)):
         
         apex_point = root_details.get("apex") # [y, x]
         
-        integrity_score = calculate_integrity_score(structure_mask)
-        infection_score = calculate_infection_score(crop, structure_mask, apex_point)
-        
-        strength_score, score_details = calculate_strength_score(
-            bone_loss_pct, integrity_score, infection_score
-        )
+        # Stage 5: Scoring & Classification
+        # Score is now purely based on Bone Support (Safety First)
+        strength_score, score_details = calculate_strength_score(bone_loss_pct)
         
         diagnosis = get_classification(bone_loss_pct)
         
@@ -109,9 +106,7 @@ async def analyze_scan(scan: UploadFile = File(...)):
             tooth_id=tooth_id,
             scores=ToothScores(
                 strength=strength_score,
-                bone_support=score_details["bone_support_score"],
-                integrity=integrity_score,
-                infection=infection_score
+                bone_support=score_details["bone_support_score"]
             ),
             measurements=ToothMeasurements(
                 root_length_mm=round(root_len_mm, 2),
